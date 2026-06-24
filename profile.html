@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Profile</title>
+  <link rel="stylesheet" href="./css/style.css">
+  <script type="module" src="./js/profile.js"></script>
+</head>
+<body>
+
+<h1>My Profile</h1>
+
+<div class="profile-card">
+
+  <h2 id="profileUsername">Loading...</h2>
+
+  <p id="profileEmail"></p>
+
+  <p id="profileBio"></p>
+  
+
+<br><br>
+
+<button id="editProfileBtn">
+  Edit Profile
+</button>
+
+<div id="editSection" style="display:none;">
+
+  <input
+    type="text"
+    id="usernameInput"
+    placeholder="Username"
+  >
+
+  <br><br>
+
+  <textarea
+    id="bioInput"
+    placeholder="Enter Bio"
+  ></textarea>
+
+  <br><br>
+
+  <button id="saveProfileBtn">
+    Save Changes
+  </button>
+
+</div>
+
+  <p>
+    Followers:
+    <span id="followersCount">0</span>
+  </p>
+
+  <p>
+    Following:
+    <span id="followingCount">0</span>
+  </p>
+
+</div>
+
+<button id="logoutBtn">
+  Logout
+</button>
+
+<script type="module" src="./js/profile.js"></script>
+
+</body>
+</html>
