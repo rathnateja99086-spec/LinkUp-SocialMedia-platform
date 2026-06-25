@@ -10,11 +10,34 @@ import {
   query,
   orderBy,
   updateDoc,
-  arrayUnion
+  deleteDoc,
+  arrayUnion,
+  arrayRemove
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
+import {
+  signOut
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
+
+// ====================
+// LOGOUT
+// ====================
+
+const logoutBtn = document.getElementById("logoutBtn");
+
+if (logoutBtn) {
+  logoutBtn.addEventListener("click", async () => {
+    await signOut(auth);
+    window.location.href = "login.html";
+  });
+}
+
+
+// ====================
 // CREATE POST
+// ====================
+
 const postBtn = document.getElementById("postBtn");
 
 if (postBtn) {
@@ -22,28 +45,27 @@ if (postBtn) {
   postBtn.addEventListener("click", async () => {
 
     const content =
-      document.getElementById("postContent").value;
+      document.getElementById("postContent").value.trim();
 
-    if (!content.trim()) return;
+    if (!content) return;
 
     try {
 
-      const userRef = doc(
-        db,
-        "users",
-        auth.currentUser.uid
-      );
+      const userRef =
+        doc(db, "users", auth.currentUser.uid);
 
-      const userSnap = await getDoc(userRef);
+      const userSnap =
+        await getDoc(userRef);
 
-      const userData = userSnap.data();
+      const userData =
+        userSnap.data();
 
       await addDoc(
         collection(db, "posts"),
         {
           userId: auth.currentUser.uid,
           username: userData.username,
-          content: content,
+          content,
           createdAt: serverTimestamp(),
           likes: []
         }
@@ -55,7 +77,7 @@ if (postBtn) {
 
     } catch (error) {
 
-      console.log(error);
+      console.error(error);
 
     }
 
@@ -64,11 +86,16 @@ if (postBtn) {
 }
 
 
+// ====================
 // LOAD POSTS
-async function loadPosts() {
+// ====================
+
+async function loadPosts(search = "") {
 
   const postsContainer =
     document.getElementById("postsContainer");
+
+  if (!postsContainer) return;
 
   postsContainer.innerHTML = "";
 
@@ -77,108 +104,161 @@ async function loadPosts() {
     orderBy("createdAt", "desc")
   );
 
-  const snapshot = await getDocs(q);
+  const snapshot =
+    await getDocs(q);
 
   for (const postDoc of snapshot.docs) {
 
-    const post = postDoc.data();
+    const post =
+      postDoc.data();
+
+    const currentUid =
+      auth.currentUser.uid;
+
+    const liked =
+      post.likes?.includes(currentUid);
 
     postsContainer.innerHTML += `
-      <div style="border:1px solid #ccc;padding:10px;margin:10px">
 
-        <h4>@${post.username || "User"}</h4>
+      <div class="border-b p-4">
 
-        <p>${post.content}</p>
+        <div class="font-bold text-lg">
+          @${post.username}
+        </div>
 
-        <button onclick="likePost('${postDoc.id}')">
-          ❤️ ${post.likes ? post.likes.length : 0}
-        </button>
+        <p class="mt-2">
+          ${post.content}
+        </p>
 
-        <br><br>
+        <div class="mt-3 flex gap-4 items-center">
 
-        <input
-          type="text"
-          id="comment-${postDoc.id}"
-          placeholder="Add comment"
-        >
+  <button
+    onclick="toggleLike('${postDoc.id}')"
+    class="text-red-500"
+  >
+    ${liked ? "❤️" : "🤍"}
+    ${post.likes?.length || 0}
+  </button>
 
-        <button onclick="addComment('${postDoc.id}')">
-          Comment
-        </button>
+  ${
+    post.userId === auth.currentUser.uid
+      ? `
+      <button
+        onclick="deletePost('${postDoc.id}')"
+        class="text-red-600 font-semibold"
+      >
+        Delete
+      </button>
+      `
+      : ""
+  }
 
-        <div id="comments-${postDoc.id}"></div>
+</div>
+
+        <div class="mt-4">
+
+          <input
+            id="comment-${postDoc.id}"
+            placeholder="Add comment"
+            class="border p-2 rounded w-full"
+          >
+
+          <button
+            onclick="addComment('${postDoc.id}')"
+            class="mt-2 bg-indigo-600 text-white px-4 py-2 rounded"
+          >
+            Comment
+          </button>
+
+        </div>
+
+        <div
+          id="comments-${postDoc.id}"
+          class="mt-3"
+        ></div>
 
       </div>
+
     `;
 
-    const commentsContainer =
-      document.getElementById(`comments-${postDoc.id}`);
-
-    const commentsSnapshot =
-      await getDocs(collection(db, "comments"));
-
-    commentsSnapshot.forEach((commentDoc) => {
-
-      const comment = commentDoc.data();
-
-      if (comment.postId === postDoc.id) {
-
-        commentsContainer.innerHTML += `
-          <p>
-            <strong>${comment.username || "User"}</strong>:
-            ${comment.text}
-          </p>
-        `;
-
-      }
-
-    });
+    await loadComments(postDoc.id);
 
   }
 
 }
 
 
-// LIKE POST
-window.likePost = async function (postId) {
+// ====================
+// LIKE / UNLIKE
+// ====================
 
-  const uid = auth.currentUser.uid;
+window.toggleLike = async function(postId) {
 
-  const postRef = doc(
-    db,
-    "posts",
-    postId
-  );
+  const uid =
+    auth.currentUser.uid;
 
-  await updateDoc(postRef, {
-    likes: arrayUnion(uid)
-  });
+  const postRef =
+    doc(db, "posts", postId);
+
+  const postSnap =
+    await getDoc(postRef);
+
+  const post =
+    postSnap.data();
+
+  if (post.likes?.includes(uid)) {
+
+    await updateDoc(postRef, {
+      likes: arrayRemove(uid)
+    });
+
+  } else {
+
+    await updateDoc(postRef, {
+      likes: arrayUnion(uid)
+    });
+
+  }
 
   loadPosts();
 
 };
 
+window.deletePost = async function(postId){
 
-// ADD COMMENT
-window.addComment = async function (postId) {
+  const confirmDelete =
+    confirm("Delete this post?");
+
+  if(!confirmDelete) return;
+
+  await deleteDoc(
+    doc(db,"posts",postId)
+  );
+
+  loadPosts();
+
+};
+// ====================
+// COMMENTS
+// ====================
+
+window.addComment = async function(postId) {
 
   const input =
     document.getElementById(`comment-${postId}`);
 
-  const text = input.value;
+  const text =
+    input.value.trim();
 
-  if (!text.trim()) return;
+  if (!text) return;
 
-  const userRef = doc(
-    db,
-    "users",
-    auth.currentUser.uid
-  );
+  const userRef =
+    doc(db, "users", auth.currentUser.uid);
 
   const userSnap =
     await getDoc(userRef);
 
-  const userData =
+  const user =
     userSnap.data();
 
   await addDoc(
@@ -186,7 +266,7 @@ window.addComment = async function (postId) {
     {
       postId,
       userId: auth.currentUser.uid,
-      username: userData.username,
+      username: user.username,
       text,
       createdAt: serverTimestamp()
     }
@@ -199,64 +279,162 @@ window.addComment = async function (postId) {
 };
 
 
-loadPosts();
+async function loadComments(postId) {
+
+  const container =
+    document.getElementById(`comments-${postId}`);
+
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  const commentsSnapshot =
+    await getDocs(collection(db, "comments"));
+
+  commentsSnapshot.forEach((commentDoc) => {
+
+    const comment =
+      commentDoc.data();
+
+    if (comment.postId === postId) {
+
+      container.innerHTML += `
+
+        <div class="mt-2 text-sm">
+
+          <strong>
+            ${comment.username}
+          </strong>
+
+          : ${comment.text}
+
+        </div>
+
+      `;
+
+    }
+
+  });
+
+}
+
+
+// ====================
+// SUGGESTED USERS
+// ====================
+
 async function loadUsers() {
 
   const usersContainer =
     document.getElementById("usersContainer");
 
+  const searchInput =
+    document.getElementById("searchUser");
+
   if (!usersContainer) return;
 
   usersContainer.innerHTML = "";
+
+  const search =
+    searchInput
+      ? searchInput.value.trim()
+      : "";
 
   const snapshot =
     await getDocs(collection(db, "users"));
 
   snapshot.forEach((userDoc) => {
 
-    const user = userDoc.data();
+    const user =
+      userDoc.data();
 
-    if (user.uid === auth.currentUser.uid)
+    if (
+      user.uid === auth.currentUser.uid
+    ) return;
+
+    if (
+      search &&
+      !user.username
+        .toLowerCase()
+        .includes(search.toLowerCase())
+    ) {
       return;
+    }
 
     usersContainer.innerHTML += `
-      <div style="border:1px solid #ccc;padding:10px;margin:10px">
+      <div class="flex justify-between items-center border-b py-3">
 
-        <h4>${user.username}</h4>
+        <div>
+          <div class="font-semibold">
+            ${user.username}
+          </div>
+
+          <div class="text-sm text-gray-500">
+            @${user.username}
+          </div>
+        </div>
 
         <button
           onclick="followUser('${user.uid}')"
+          class="bg-black text-white px-4 py-1 rounded-full"
         >
           Follow
         </button>
 
       </div>
     `;
-
   });
 
 }
-window.followUser = async function(targetUid){
+
+// ====================
+// FOLLOW USER
+// ====================
+
+window.followUser = async function(targetUid) {
 
   const currentUid =
     auth.currentUser.uid;
 
   const currentUserRef =
-    doc(db,"users",currentUid);
+    doc(db, "users", currentUid);
 
   const targetUserRef =
-    doc(db,"users",targetUid);
+    doc(db, "users", targetUid);
 
-  await updateDoc(currentUserRef,{
+  await updateDoc(currentUserRef, {
     following: arrayUnion(targetUid)
   });
 
-  await updateDoc(targetUserRef,{
+  await updateDoc(targetUserRef, {
     followers: arrayUnion(currentUid)
   });
 
-  alert("Followed User");
+  alert("User Followed");
+
+  loadUsers();
+
+};
+
+
+// ====================
+// INIT
+// ====================
+const searchInput =
+  document.getElementById("searchUser");
+
+if(searchInput){
+
+  searchInput.addEventListener(
+    "input",
+    (e) => {
+
+      loadUsers(e.target.value);
+
+    }
+  );
 
 }
+
 loadPosts();
 loadUsers();

@@ -1,36 +1,116 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>LinkUp Feed</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>LinkUp Feed</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+body{
+    font-family:'Inter',sans-serif;
+}
+</style>
+
 </head>
-<body>
 
-<button onclick="window.location.href='profile.html'">
-  My Profile
-</button>
+<body class="bg-gray-50">
 
-<h1>LinkUp Feed</h1>
+<div class="max-w-7xl mx-auto flex min-h-screen">
 
-<textarea
-id="postContent"
-placeholder="What's on your mind?"
-></textarea>
+    <!-- LEFT SIDEBAR -->
+    <aside class="hidden md:flex w-64 border-r bg-white flex-col p-6">
 
-<br><br>
+        <h1 class="text-4xl font-bold text-indigo-600">
+            LinkUp
+        </h1>
 
-<button id="postBtn">
-Post
-</button>
+        <p class="text-gray-500 text-sm mt-1">
+            Digital Social
+        </p>
 
-<hr>
+        <nav class="mt-10 space-y-5">
 
-<div id="postsContainer"></div>
+            <a href="feed.html"
+               class="block text-lg font-semibold text-indigo-600">
+                Home
+            </a>
 
-<hr>
+            <a href="profile.html"
+               class="block text-lg text-gray-700">
+                Profile
+            </a>
 
-<h2>Suggested Users</h2>
+        </nav>
 
-<div id="usersContainer"></div>
+        <button
+        id="logoutBtn"
+        class="mt-auto bg-red-500 text-white py-3 rounded-xl">
+            Logout
+        </button>
+
+    </aside>
+
+    <!-- CENTER FEED -->
+    <main class="flex-1 max-w-2xl border-x bg-white">
+
+        <!-- HEADER -->
+        <div class="sticky top-0 bg-white border-b p-4 z-10">
+
+            <h2 class="text-2xl font-bold">
+                Home
+            </h2>
+
+        </div>
+
+        <!-- CREATE POST -->
+        <div class="p-4 border-b">
+
+            <textarea
+            id="postContent"
+            placeholder="What's happening?"
+            class="w-full border rounded-xl p-3 resize-none"
+            rows="4"></textarea>
+
+            <button
+            id="postBtn"
+            class="mt-3 bg-indigo-600 text-white px-6 py-2 rounded-full">
+                Post
+            </button>
+
+        </div>
+
+        <!-- POSTS -->
+        <div id="postsContainer"></div>
+
+    </main>
+
+    <!-- RIGHT SIDEBAR -->
+    <aside class="hidden lg:block w-80 p-6">
+
+        <div class="bg-white rounded-xl border p-4">
+
+            <h3 class="font-bold text-xl mb-4">
+                Suggested Users
+            </h3>
+            <input
+  type="text"
+  id="searchUser"
+  placeholder="Search users..."
+  class="border p-2 rounded w-full mb-4"
+/>
+
+            <div id="usersContainer"></div>
+
+        </div>
+
+    </aside>
+
+</div>
 
 <script type="module" src="./js/posts.js"></script>
 

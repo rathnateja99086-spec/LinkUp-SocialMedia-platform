@@ -1,18 +1,48 @@
 import { auth, db } from "./firebase.js";
 
 import {
-  doc,
-  getDoc,
-  updateDoc
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-import {
-  signOut,
-  onAuthStateChanged
+  onAuthStateChanged,
+  signOut
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  orderBy
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-// LOAD PROFILE
+const profileNameTop = document.getElementById("profileNameTop");
+const postCountTop = document.getElementById("postCountTop");
+
+const profileName = document.getElementById("profileName");
+const profileUsername = document.getElementById("profileUsername");
+const profileBio = document.getElementById("profileBio");
+const profileLocation = document.getElementById("profileLocation");
+const profileWebsite = document.getElementById("profileWebsite");
+const joinedDate = document.getElementById("joinedDate");
+
+const followersCount = document.getElementById("followersCount");
+const followingCount = document.getElementById("followingCount");
+
+const postsContainer = document.getElementById("postsContainer");
+
+const logoutBtn = document.getElementById("logoutBtn");
+
+
+// Logout
+if (logoutBtn) {
+  logoutBtn.addEventListener("click", async () => {
+    await signOut(auth);
+    window.location.href = "login.html";
+  });
+}
+
+
+// Auth Check
 onAuthStateChanged(auth, async (user) => {
 
   if (!user) {
@@ -20,110 +50,125 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
-  const userRef = doc(db, "users", user.uid);
+  try {
 
-  const userSnap = await getDoc(userRef);
+    // Get User Data
+    const userRef = doc(db, "users", user.uid);
+    const userSnap = await getDoc(userRef);
 
-  const userData = userSnap.data();
+    if (!userSnap.exists()) return;
 
-  document.getElementById("profileUsername").textContent =
-    userData.username;
+    const userData = userSnap.data();
 
-  document.getElementById("profileEmail").textContent =
-    userData.email;
+    // Top Header
+    profileNameTop.textContent =
+      userData.username || "User";
 
-  document.getElementById("profileBio").textContent =
-    userData.bio || "No bio yet";
+    // Profile Info
+    profileName.textContent =
+      userData.username || "User";
 
-  document.getElementById("followersCount").textContent =
-    userData.followers?.length || 0;
+    profileUsername.textContent =
+      "@" + (userData.username || "user");
 
-  document.getElementById("followingCount").textContent =
-    userData.following?.length || 0;
+    profileBio.textContent =
+      userData.bio || "No bio yet.";
 
-  // Populate edit fields
-  document.getElementById("usernameInput").value =
-    userData.username || "";
+    profileLocation.textContent =
+      userData.location || "";
 
-  document.getElementById("bioInput").value =
-    userData.bio || "";
-
-});
-
-
-// LOGOUT
-document
-  .getElementById("logoutBtn")
-  .addEventListener("click", async () => {
-
-    await signOut(auth);
-
-    window.location.href = "login.html";
-
-  });
-
-
-// SHOW / HIDE EDIT PROFILE SECTION
-document
-  .getElementById("editProfileBtn")
-  .addEventListener("click", () => {
-
-    const section =
-      document.getElementById("editSection");
-
-    const btn =
-      document.getElementById("editProfileBtn");
-
-    if (section.style.display === "none") {
-
-      section.style.display = "block";
-      btn.textContent = "Cancel";
-
+    // Website
+    if (userData.website) {
+      profileWebsite.href = userData.website;
+      profileWebsite.textContent = userData.website;
     } else {
-
-      section.style.display = "none";
-      btn.textContent = "Edit Profile";
-
+      profileWebsite.textContent = "";
     }
 
-  });
+    // Joined Date
+    joinedDate.textContent =
+      "Joined " +
+      new Date(user.metadata.creationTime)
+        .toLocaleDateString("en-US", {
+          month: "long",
+          year: "numeric"
+        });
 
+    // Followers
+    followersCount.textContent =
+      userData.followers
+        ? userData.followers.length
+        : 0;
 
-// SAVE PROFILE
-document
-  .getElementById("saveProfileBtn")
-  .addEventListener("click", async () => {
+    followingCount.textContent =
+      userData.following
+        ? userData.following.length
+        : 0;
 
-    const user = auth.currentUser;
-
-    if (!user) return;
-
-    const username =
-      document.getElementById("usernameInput").value;
-
-    const bio =
-      document.getElementById("bioInput").value;
-
-    await updateDoc(
-      doc(db, "users", user.uid),
-      {
-        username,
-        bio
-      }
+    // Load Posts
+    const postsQuery = query(
+      collection(db, "posts"),
+      where("userId", "==", user.uid),
+      orderBy("createdAt", "desc")
     );
 
-    document.getElementById("profileUsername").textContent =
-      username;
+    const postSnapshot =
+      await getDocs(postsQuery);
+    console.log("Posts found:", postSnapshot.size);
 
-    document.getElementById("profileBio").textContent =
-      bio;
+    postCountTop.textContent =
+      `${postSnapshot.size} Posts`;
+    console.log(postCountTop);
+    postsContainer.innerHTML = "";
 
-    document.getElementById("editSection").style.display =
-      "none";
+    if (postSnapshot.empty) {
 
-    document.getElementById("editProfileBtn").textContent =
-      "Edit Profile";
+      postsContainer.innerHTML = `
+        <div class="p-6 text-center text-gray-500">
+          No posts yet.
+        </div>
+      `;
 
-    alert("Profile Updated Successfully");
+      return;
+    }
 
-  });
+    postSnapshot.forEach((postDoc) => {
+
+      const post = postDoc.data();
+
+      const postElement =
+      document.createElement("article");
+
+      postElement.className =
+        "p-md border-b border-outline-variant/30";
+
+      postElement.innerHTML = `
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center gap-2">
+            <span class="font-bold">
+              ${userData.username}
+            </span>
+            <span class="text-sm text-gray-500">
+              ${post.createdAt?.toDate
+                ? post.createdAt.toDate().toLocaleString()
+                : ""}
+            </span>
+          </div>
+
+          <p class="text-body-md">
+            ${post.content || ""}
+          </p>
+        </div>
+      `;
+
+      postsContainer.appendChild(postElement);
+
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+  }
+
+});
